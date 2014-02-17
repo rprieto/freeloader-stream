@@ -1,0 +1,24 @@
+{
+  "name": "freeloader-stream",
+  "version": "0.0.1",
+  "description": "Base class for FreeLoader streams",
+  "author": "Romain Prieto",
+  "license": "MIT",
+  "keywords": [
+    "freeloader",
+    "test",
+    "performance"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rprieto/freeloader-stream.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "node_modules/.bin/mocha"
+  },
+  "devDependencies": {
+    "mocha": "~1.17.1",
+    "should": "~3.1.2"
+  }
+}

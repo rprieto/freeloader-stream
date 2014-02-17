@@ -3,7 +3,7 @@
 Base class for [freeloader](https://github.com/rprieto/freeloader) streams.
 These are [Transform streams](http://nodejs.org/api/stream.html#stream_class_stream_transform_1), which are both readable and writable.
 
-You can override a few functions from the base class, but remember to call the original implementation as well.
+You can create your own stream from scratch, but this class provides a lot of the core functionality to make it easier.
 
 ## An example
 

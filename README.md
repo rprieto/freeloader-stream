@@ -1,11 +1,63 @@
 # freeloader-stream
 
-Base class for [freeloader](https://github.com/rprieto/freeloader) streams.
-These are [Transform streams](http://nodejs.org/api/stream.html#stream_class_stream_transform_1), which are both readable and writable.
+Base class for [freeloader](https://github.com/rprieto/freeloader) modules.
 
-You can create your own stream from scratch, but this class provides a lot of the core functionality to make it easier.
+Freeloader modules are just normal [Transform streams](http://nodejs.org/api/stream.html#stream_class_stream_transform_1). However you must handle a few events so that all modules play nice, and so the pipeline can shut down gracefully. This base class provides a lot of the core functionality to make it easier.
 
-## An example
+Most modules should ony worry about 3 things:
+
+## on('request')
+
+The `request` event is emitted for every request going through. Always assume there will be more than 1 request, since an upstream module could be emitting several requests on a timer for example.
+
+```js
+myStream.on('request', function(item) {
+  // for each request
+  console.log('Request: ', item.request.options.url);
+  // for each response
+  item.response.then(function(res) {
+    console.log('Response: ', res.body);
+  });
+  // and pass along
+  this.push(item);
+});
+```
+
+### The request item
+
+- `item.request`: the [unirest](https://github.com/mashape/unirest-nodejs) request object
+- `item.response`: a [Q](https://github.com/kriskowal/q) promise for the response
+- `item.clone()`: to returns a copy of the item, with the same request and a **new** response promise
+
+### Passing down requests
+
+- You can call `this.push(item)` to forward the item to the next module.
+- To multiply the number of requests, you can call `this.push(item.clone())` several times. Each clone will have their own response promise.
+- If you decide to stop sending requests, you can call `this.push(null)` to signify the source has dried up.
+
+## on('finish')
+
+This function will be called when the whole test has finished. You can override it to generate reports.
+
+```js
+myStream.on('finish', function() {
+  console.log('Done!');
+});
+```
+
+## emit('terminate')
+
+The only event you should emit is `this.emit('terminate')`, which signals the whole pipeline to shut down. The event will bubble all the way to the top, and call `on('finish')` on every module on the way down. 
+
+```js
+setTimeout(function() {
+  myStream.emit('terminate');
+}, 1000);
+```
+
+# Full example
+
+Here's a full example that prints every request and its response. You can find more examples at [freeloader-bundle](https://github.com/rprieto/freeloader-bundle).
 
 ```js
 var util = require('util');
@@ -13,53 +65,31 @@ var FLS  = require('freeloader-stream');
 
 function MyStream() {
   FLS.call(this);
+  this.on('request', this.onRequest);
+  this.on('close', this.onClose);
 }
 
 util.inherits(MyStream, FLS);
 MyStream.prototype.name = 'MyStream';
 
-MyStream.prototype._transform = function(item, encoding, callback) {
-  FLS.prototype._transform.call(this);
+MyStream.prototype.onRequest = function(item, callback) {
   // for each request
-  process.stdout.write('o');
+  console.log('Req: ', item.request.options.url);
   // for each response
   item.response.then(function(res) {
-    process.stdout.write('x');
+    console.log('Res: ', res.body);
   });
   // and pass along
   this.push(item);
   callback();
 };
 
-MyStream.prototype.end = function() {
+MyStream.prototype.onClose = function() {
   // finished!
-  FLS.prototype.end.call(this);
-  process.stdout.write('!');
+  process.stdout.write('Done!');
 };
 
 module.exports = function() {
   return new MyStream();
 };
 ```
-
-## How it works
-
-### _transform()
-
-The `_transform` function will be called for every request going through. Always assume there will be more than 1 request, since an upstream module could be emitting several on a timer for example.
-
-The `item` parameter is an object that contains:
-
-- `request`: the [unirest](https://github.com/mashape/unirest-nodejs) request object
-- `response`: a [Q](https://github.com/kriskowal/q) promise for a response
-- `clone()`: a function that returns a copy of the item, with the same request and a **new** response promise
-
-Inside the `_transform` function, you can call `this.push(item)` to forward the item to the next module. As long as you clone the item, you can call `push` several times to multiply the number of requests.
-
-### end()
-
-This function will be called when the test has finished. You can override it to generate reports. You must call `this.push(null)` to pass down the `end()` event downstream.
-
-### emit()
-
-The only event you should emit is `this.emit('terminate')`, which signals the whole pipeline to shut down. The event will bubble all the way to the top, and call `end()` on every module on the way down. 

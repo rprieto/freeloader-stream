@@ -4,7 +4,7 @@ Base class for [freeloader](https://github.com/rprieto/freeloader) modules.
 
 Freeloader modules are just normal [Transform streams](http://nodejs.org/api/stream.html#stream_class_stream_transform_1). However you must handle a few events so that all modules play nice, and so the pipeline can shut down gracefully. This base class provides a lot of the core functionality to make it easier.
 
-Most modules should ony worry about 3 things:
+Most modules should only worry about 3 things:
 
 ## on('request')
 
@@ -23,13 +23,13 @@ myStream.on('request', function(item) {
 });
 ```
 
-### The request item
+#### The request item
 
 - `item.request`: the [unirest](https://github.com/mashape/unirest-nodejs) request object
 - `item.response`: a [Q](https://github.com/kriskowal/q) promise for the response
 - `item.clone()`: to returns a copy of the item, with the same request and a **new** response promise
 
-### Passing down requests
+#### Passing down requests
 
 - You can call `this.push(item)` to forward the item to the next module.
 - To multiply the number of requests, you can call `this.push(item.clone())` several times. Each clone will have their own response promise.
@@ -47,7 +47,7 @@ myStream.on('finish', function() {
 
 ## emit('terminate')
 
-The only event you should emit is `this.emit('terminate')`, which signals the whole pipeline to shut down. The event will bubble all the way to the top, and call `on('finish')` on every module on the way down. 
+The only event you might need to emit is `this.emit('terminate')`, which signals the whole pipeline to shut down. The event will bubble all the way to the top, and call `on('finish')` on every module on the way down. 
 
 ```js
 setTimeout(function() {

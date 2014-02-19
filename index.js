@@ -10,22 +10,21 @@ function log() {
   }
 }
 
-function FreeLoaderStream(count) {
+function FreeLoaderStream(options) {
 
-  Transform.call(this, {objectMode : true});
+  options = options || {};
+  options.objectMode = true;
+  Transform.call(this, options);
 
   // Set when the pipeline is terminated
-  this.finished = false;
+  this.shuttingDown = false;
 
-  // Terminate event
-  this.on('terminate', this.onTerminate);
-
-  // Relay the termination event to upstream modules
-  this.on('pipe', function(s) {
-    this.on('terminate', function(err) {
-      log(this.name + ': relay terminate');
-      s.emit('terminate');
-    });
+  // Relay the shutdown event
+  // from upstream all the way down
+  this.on('pipe', function(upstream) {
+    upstream.on('shutdown', function() {
+      this.emit('shutdown');
+    }.bind(this));
   }.bind(this));
 
 }
@@ -41,15 +40,14 @@ FreeLoaderStream.prototype._transform = function(chunk, encoding, callback) {
 };
 
 FreeLoaderStream.prototype.end = function() {
-  log(this.name + ': end');
-  this.emit('finish');
-  this.push(null);
-};
+  // should be overriden
+}
 
-FreeLoaderStream.prototype.onTerminate = function() {
-  log(this.name + ': terminate');
+FreeLoaderStream.prototype.terminate = function() {
+  // Send the same signal as Ctrl-C
+  // This will be caught by the emitter at the top
   this.finished = true;
+  process.kill(process.pid, 'SIGINT');
 };
-
 
 module.exports = FreeLoaderStream;

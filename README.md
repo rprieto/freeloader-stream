@@ -2,7 +2,7 @@
 
 Base class for [freeloader](https://github.com/rprieto/freeloader) modules.
 
-Freeloader modules are just normal [Transform streams](http://nodejs.org/api/stream.html#stream_class_stream_transform_1). However you must handle a few events so that all modules play nice. This base class provides the core functionality to make it easier.
+Freeloader modules are just normal [Transform streams](http://nodejs.org/api/stream.html#stream_class_stream_transform_1) in `flowing` mode. This base class provides the core functionality to make it easier.
 
 Most modules should only worry about 4 things:
 
@@ -11,7 +11,7 @@ Most modules should only worry about 4 things:
 The `request` event is emitted for every request going through. Always assume there will be more than 1 request, since an upstream module could be emitting several requests on a timer for example.
 
 ```js
-myStream.on('request', function(item) {
+this.on('request', function(item) {
   // for each request
   console.log('Request: ', item.request.options.url);
   // for each response
@@ -42,29 +42,29 @@ Being a writable stream, this function will be called when the upstream module p
 This is good place to generate reports. Note that this event will trigger while requests are still in flight. You can decide to wait for all pending reponses by calling `q.all()` on the response promises.
 
 ```js
-myStream.on('end', function() {
+this.on('end', function() {
   console.log('No more upstream requests!');
 });
 ```
 
-## on('shutdown')
+## on('pause')
 
-This is called on every module if the user presses `Ctrl-C`. Modules that decided to ignore the upstream `end` event **must** respond to `shutdown`. You must not emit any new requests after this.
+This is called if a downstream module asked the pipeline to stop. Modules that decided to ignore the upstream `end` event **must** respond to `pause`. You must not emit any new requests after this.
 
 ```js
-myStream.on('shutdown', function() {
-  console.log('Asked to shutdown');
+this.on('pause', function() {
   console.log('Not sending any more requests after this');
 });
 ```
 
-## this.terminate()
+## this.pause()
 
-If you wish to shutdown the whole test, you can call `this.terminate()`. This will send a `SIGINT` to the whole process, which triggers the same behaviour as pressing `Ctrl-C`.
+This notifies upstream modules that you don't want to get any more requests. They should honor this, which will terminate the pipeline once the event loop is clear.
 
 ```js
+var myStream = this;
 setTimeout(function() {
-  myStream.shutdown();
+  myStream.pause();
 }, 1000);
 ```
 

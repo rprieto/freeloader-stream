@@ -16,38 +16,39 @@ function FreeLoaderStream(options) {
   options.objectMode = true;
   Transform.call(this, options);
 
-  // Set when the pipeline is terminated
-  this.shuttingDown = false;
+  // still running?
+  this.finished = false;
 
-  // Relay the shutdown event
-  // from upstream all the way down
+  this.on('pause', function() {
+    log(this.name, ': on pause');
+    this.finished = true;
+  }.bind(this));
+
   this.on('pipe', function(upstream) {
-    upstream.on('shutdown', function() {
-      this.emit('shutdown');
+
+    // put upstream modules in flowing mode
+    // we must send down every request as fast as possible
+    upstream.on('data', function(chunk) {
+      log('\n' + this.name + ' got data from ' + upstream.name);
+      if (!this.finished) {
+        this.emit('request', chunk);
+      }
     }.bind(this));
+
+    // and if we're asking to pause
+    // they should too
+    this.on('pause', function() {
+      upstream.emit('pause');
+    });
+
   }.bind(this));
 
 }
 
 FreeLoaderStream.prototype.name = 'FreeLoaderStream';
 
-FreeLoaderStream.prototype._transform = function(chunk, encoding, callback) {
-  log(this.name + ': _transform');
-  if (!this.finished) {
-    this.emit('request', chunk, callback);
-    callback();
-  }
-};
-
 FreeLoaderStream.prototype.end = function() {
   // should be overriden
 }
-
-FreeLoaderStream.prototype.terminate = function() {
-  // Send the same signal as Ctrl-C
-  // This will be caught by the emitter at the top
-  this.finished = true;
-  process.kill(process.pid, 'SIGINT');
-};
 
 module.exports = FreeLoaderStream;

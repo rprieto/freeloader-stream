@@ -47,6 +47,11 @@ function FreeLoaderStream(options) {
 
 FreeLoaderStream.prototype.name = 'FreeLoaderStream';
 
+FreeLoaderStream.prototype._transform = function(chunk, encoding, cb) {
+  // derived classes will explicitly 'push' data on the 'request' event
+  cb(null, null);
+};
+
 FreeLoaderStream.prototype.end = function() {
   // should be overriden
 }
